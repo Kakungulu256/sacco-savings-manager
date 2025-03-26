@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { savingsService, loansService } from '@/lib/appwrite';
-import { PieChart, BarChart, AreaChart, Tooltip, ResponsiveContainer, Pie, Bar, XAxis, YAxis, CartesianGrid, Area, Cell } from 'recharts';
+import { PieChart, AreaChart, Tooltip, ResponsiveContainer, Pie, XAxis, YAxis, CartesianGrid, Area, Cell } from 'recharts';
 import { ArrowUp, ArrowDown, Users, FileText, AlertCircle } from 'lucide-react';
 
 const Dashboard = () => {
@@ -12,62 +12,99 @@ const Dashboard = () => {
   const [totalLoans, setTotalLoans] = useState(0);
   const [loanApplications, setLoanApplications] = useState([]);
   const [recentSavings, setRecentSavings] = useState([]);
+  const [savingsData, setSavingsData] = useState([]);
+  const [loanData, setLoanData] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        // Fetch user-specific or admin data based on role
         if (isAdmin) {
-          // Admin sees all data
+          // Admin: Fetch all savings and loans
           const savingsRes = await savingsService.getAllSavings();
           const loansRes = await loansService.getAllLoans();
-          
+
           const totalSavingsAmount = savingsRes.documents.reduce(
-            (total, saving) => total + saving.amount, 
+            (total, saving) => total + saving.amount,
             0
           );
-          
+
           const totalLoansAmount = loansRes.documents
             .filter(loan => loan.status === 'approved')
             .reduce((total, loan) => total + loan.amount, 0);
-            
-          const pendingLoans = loansRes.documents
-            .filter(loan => loan.status === 'pending')
-            .sort((a, b) => new Date(b.applicationDate).getTime() - new Date(a.applicationDate).getTime());
-          
-          // Get recent savings
+
+          const pendingLoans = loansRes.documents.filter(loan => loan.status === 'pending');
+
           const recent = savingsRes.documents
             .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
             .slice(0, 5);
-            
+
+          const savingsChartData = savingsRes.documents.reduce((acc, saving) => {
+            const month = new Date(saving.date).toLocaleString('default', { month: 'short' });
+            const existing = acc.find(item => item.name === month);
+            if (existing) {
+              existing.amount += saving.amount;
+            } else {
+              acc.push({ name: month, amount: saving.amount });
+            }
+            return acc;
+          }, []);
+
+          const loanChartData = [
+            { name: 'Applied', value: loansRes.documents.length },
+            { name: 'Approved', value: loansRes.documents.filter(loan => loan.status === 'approved').length },
+            { name: 'Rejected', value: loansRes.documents.filter(loan => loan.status === 'rejected').length },
+          ];
+
           setTotalSavings(totalSavingsAmount);
           setTotalLoans(totalLoansAmount);
           setLoanApplications(pendingLoans);
           setRecentSavings(recent);
+          setSavingsData(savingsChartData);
+          setLoanData(loanChartData);
         } else {
-          // Regular user sees only their data
+          // Regular user: Fetch user-specific savings and loans
           const userSavings = await savingsService.getUserSavings(user?.$id || '');
           const userLoans = await loansService.getUserLoans(user?.$id || '');
-          
+
           const totalUserSavings = userSavings.documents.reduce(
-            (total, saving) => total + saving.amount, 
+            (total, saving) => total + saving.amount,
             0
           );
-          
+
           const totalUserLoans = userLoans.documents
             .filter(loan => loan.status === 'approved')
             .reduce((total, loan) => total + loan.amount, 0);
-          
-          const pendingUserLoans = userLoans.documents
-            .filter(loan => loan.status === 'pending');
-            
+
+          const pendingUserLoans = userLoans.documents.filter(loan => loan.status === 'pending');
+
+          const recent = userSavings.documents
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+            .slice(0, 5);
+
+          const savingsChartData = userSavings.documents.reduce((acc, saving) => {
+            const month = new Date(saving.date).toLocaleString('default', { month: 'short' });
+            const existing = acc.find(item => item.name === month);
+            if (existing) {
+              existing.amount += saving.amount;
+            } else {
+              acc.push({ name: month, amount: saving.amount });
+            }
+            return acc;
+          }, []);
+
+          const loanChartData = [
+            { name: 'Applied', value: userLoans.documents.length },
+            { name: 'Approved', value: userLoans.documents.filter(loan => loan.status === 'approved').length },
+            { name: 'Rejected', value: userLoans.documents.filter(loan => loan.status === 'rejected').length },
+          ];
+
           setTotalSavings(totalUserSavings);
           setTotalLoans(totalUserLoans);
           setLoanApplications(pendingUserLoans);
-          setRecentSavings(userSavings.documents
-            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-            .slice(0, 5));
+          setRecentSavings(recent);
+          setSavingsData(savingsChartData);
+          setLoanData(loanChartData);
         }
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
@@ -78,22 +115,6 @@ const Dashboard = () => {
 
     fetchDashboardData();
   }, [user, isAdmin]);
-
-  // Sample data for charts
-  const savingsData = [
-    { name: 'Jan', amount: 2000 },
-    { name: 'Feb', amount: 3000 },
-    { name: 'Mar', amount: 2500 },
-    { name: 'Apr', amount: 4500 },
-    { name: 'May', amount: 5000 },
-    { name: 'Jun', amount: 3500 },
-  ];
-
-  const loanData = [
-    { name: 'Applied', value: 35 },
-    { name: 'Approved', value: 45 },
-    { name: 'Rejected', value: 20 },
-  ];
 
   const COLORS = ['#0088FE', '#00C49F', '#FF8042'];
 
@@ -116,24 +137,15 @@ const Dashboard = () => {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-semibold">{isAdmin ? 'Admin Dashboard' : 'Member Dashboard'}</h1>
-        <p className="text-muted-foreground">
-          Welcome back, {user?.name}
-        </p>
+        <p className="text-muted-foreground">Welcome back, {user?.name}</p>
       </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <Card className="overflow-hidden transition-all hover:shadow-md">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg font-medium flex items-center justify-between">
-              Total Savings
-              <span className="p-2 rounded-full bg-primary/10 text-primary">
-                <ArrowUp size={18} />
-              </span>
-            </CardTitle>
-            <CardDescription>
-              {isAdmin ? 'Across all members' : 'Your current balance'}
-            </CardDescription>
+        <Card>
+          <CardHeader>
+            <CardTitle>Total Savings</CardTitle>
+            <CardDescription>{isAdmin ? 'Across all members' : 'Your current balance'}</CardDescription>
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -141,28 +153,15 @@ const Dashboard = () => {
                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
               </div>
             ) : (
-              <>
-                <div className="text-3xl font-bold">{formatCurrency(totalSavings)}</div>
-                <div className="text-sm text-green-600 mt-1 flex items-center">
-                  <ArrowUp size={14} className="mr-1" />
-                  12% from last month
-                </div>
-              </>
+              <div className="text-3xl font-bold">{formatCurrency(totalSavings)}</div>
             )}
           </CardContent>
         </Card>
 
-        <Card className="overflow-hidden transition-all hover:shadow-md">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg font-medium flex items-center justify-between">
-              Total Loans
-              <span className="p-2 rounded-full bg-destructive/10 text-destructive">
-                <ArrowDown size={18} />
-              </span>
-            </CardTitle>
-            <CardDescription>
-              {isAdmin ? 'Total disbursed' : 'Your active loans'}
-            </CardDescription>
+        <Card>
+          <CardHeader>
+            <CardTitle>Total Loans</CardTitle>
+            <CardDescription>{isAdmin ? 'Total disbursed' : 'Your active loans'}</CardDescription>
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -170,28 +169,15 @@ const Dashboard = () => {
                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
               </div>
             ) : (
-              <>
-                <div className="text-3xl font-bold">{formatCurrency(totalLoans)}</div>
-                <div className="text-sm text-red-600 mt-1 flex items-center">
-                  <ArrowUp size={14} className="mr-1" />
-                  8% from last month
-                </div>
-              </>
+              <div className="text-3xl font-bold">{formatCurrency(totalLoans)}</div>
             )}
           </CardContent>
         </Card>
 
-        <Card className="overflow-hidden transition-all hover:shadow-md">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg font-medium flex items-center justify-between">
-              {isAdmin ? 'Total Members' : 'Pending Applications'}
-              <span className="p-2 rounded-full bg-blue-100 text-blue-600">
-                {isAdmin ? <Users size={18} /> : <FileText size={18} />}
-              </span>
-            </CardTitle>
-            <CardDescription>
-              {isAdmin ? 'Active members' : 'Awaiting approval'}
-            </CardDescription>
+        <Card>
+          <CardHeader>
+            <CardTitle>{isAdmin ? 'Pending Applications' : 'Pending Applications'}</CardTitle>
+            <CardDescription>{isAdmin ? 'Awaiting approval' : 'Awaiting approval'}</CardDescription>
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -199,13 +185,7 @@ const Dashboard = () => {
                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
               </div>
             ) : (
-              <>
-                <div className="text-3xl font-bold">{isAdmin ? 120 : loanApplications.length}</div>
-                <div className="text-sm text-blue-600 mt-1 flex items-center">
-                  <ArrowUp size={14} className="mr-1" />
-                  5 new this month
-                </div>
-              </>
+              <div className="text-3xl font-bold">{loanApplications.length}</div>
             )}
           </CardContent>
         </Card>
@@ -213,7 +193,7 @@ const Dashboard = () => {
 
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="overflow-hidden transition-all hover:shadow-md">
+        <Card>
           <CardHeader>
             <CardTitle>Savings Overview</CardTitle>
             <CardDescription>Monthly savings trend</CardDescription>
@@ -221,7 +201,7 @@ const Dashboard = () => {
           <CardContent>
             <div className="h-80">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={savingsData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                <AreaChart data={savingsData}>
                   <defs>
                     <linearGradient id="colorSavings" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8} />
@@ -230,43 +210,28 @@ const Dashboard = () => {
                   </defs>
                   <XAxis dataKey="name" />
                   <YAxis />
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.2} />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'white', 
-                      borderRadius: '8px',
-                      border: 'none',
-                      boxShadow: '0 2px 10px rgba(0,0,0,0.1)'
-                    }} 
-                  />
-                  <Area 
-                    type="monotone" 
-                    dataKey="amount" 
-                    stroke="#3b82f6" 
-                    fillOpacity={1} 
-                    fill="url(#colorSavings)" 
-                    strokeWidth={2}
-                  />
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <Tooltip />
+                  <Area type="monotone" dataKey="amount" stroke="#3b82f6" fill="url(#colorSavings)" />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="overflow-hidden transition-all hover:shadow-md">
+        <Card>
           <CardHeader>
             <CardTitle>Loan Distribution</CardTitle>
             <CardDescription>Status of loan applications</CardDescription>
           </CardHeader>
-          <CardContent className="flex items-center justify-center">
-            <div className="h-80 w-full">
+          <CardContent>
+            <div className="h-80">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
                     data={loanData}
                     cx="50%"
                     cy="50%"
-                    labelLine={false}
                     outerRadius={100}
                     fill="#8884d8"
                     dataKey="value"
@@ -276,14 +241,7 @@ const Dashboard = () => {
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'white', 
-                      borderRadius: '8px',
-                      border: 'none',
-                      boxShadow: '0 2px 10px rgba(0,0,0,0.1)'
-                    }} 
-                  />
+                  <Tooltip />
                 </PieChart>
               </ResponsiveContainer>
             </div>
@@ -293,7 +251,7 @@ const Dashboard = () => {
 
       {/* Recent Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="overflow-hidden transition-all hover:shadow-md">
+        <Card>
           <CardHeader>
             <CardTitle>Recent Savings</CardTitle>
             <CardDescription>Latest savings transactions</CardDescription>
@@ -307,29 +265,24 @@ const Dashboard = () => {
               <div className="space-y-4">
                 {recentSavings.map((saving: any) => (
                   <div key={saving.$id} className="flex items-center justify-between pb-4 border-b">
-                    <div className="flex items-center">
-                      <div className="p-2 rounded-full bg-green-100 text-green-600 mr-3">
-                        <ArrowUp size={16} />
-                      </div>
-                      <div>
-                        <div className="font-medium">{saving.description || 'Deposit'}</div>
-                        <div className="text-sm text-muted-foreground">{formatDate(saving.date)}</div>
-                      </div>
+                    <div>
+                      <div className="font-medium">{saving.description || 'Deposit'}</div>
+                      <div className="text-sm text-muted-foreground">{formatDate(saving.date)}</div>
                     </div>
-                    <div className="font-semibold text-green-600">{formatCurrency(saving.amount)}</div>
+                    <div className="font-semibold">{formatCurrency(saving.amount)}</div>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="h-52 flex flex-col items-center justify-center text-muted-foreground">
-                <AlertCircle size={24} className="mb-2" />
+              <div className="h-52 flex items-center justify-center text-muted-foreground">
+                <AlertCircle size={24} />
                 <p>No recent savings found</p>
               </div>
             )}
           </CardContent>
         </Card>
 
-        <Card className="overflow-hidden transition-all hover:shadow-md">
+        <Card>
           <CardHeader>
             <CardTitle>Pending Loan Applications</CardTitle>
             <CardDescription>Loans awaiting approval</CardDescription>
@@ -343,22 +296,17 @@ const Dashboard = () => {
               <div className="space-y-4">
                 {loanApplications.map((loan: any) => (
                   <div key={loan.$id} className="flex items-center justify-between pb-4 border-b">
-                    <div className="flex items-center">
-                      <div className="p-2 rounded-full bg-orange-100 text-orange-600 mr-3">
-                        <FileText size={16} />
-                      </div>
-                      <div>
-                        <div className="font-medium">{loan.purpose || 'Loan Application'}</div>
-                        <div className="text-sm text-muted-foreground">{formatDate(loan.applicationDate)}</div>
-                      </div>
+                    <div>
+                      <div className="font-medium">{loan.purpose || 'Loan Application'}</div>
+                      <div className="text-sm text-muted-foreground">{formatDate(loan.applicationDate)}</div>
                     </div>
                     <div className="font-semibold">{formatCurrency(loan.amount)}</div>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="h-52 flex flex-col items-center justify-center text-muted-foreground">
-                <AlertCircle size={24} className="mb-2" />
+              <div className="h-52 flex items-center justify-center text-muted-foreground">
+                <AlertCircle size={24} />
                 <p>No pending loan applications</p>
               </div>
             )}
