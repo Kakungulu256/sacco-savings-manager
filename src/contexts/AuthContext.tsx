@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
 interface User {
-  id: string;
+  $id: string;  // Changed from 'id' to '$id' to match Appwrite's document ID format
   email: string;
   name?: string;
   isAdmin: boolean;
@@ -67,12 +67,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error('Invalid credentials');
       }
       
-      // Create a user object without the password
-      const { password: _, ...userWithoutPassword } = foundUser;
+      // Create a user object without the password and update the id to $id to match Appwrite format
+      const { password: _, id, ...userInfo } = foundUser;
+      const userWithAppwriteId = {
+        $id: id,  // Convert 'id' to '$id' to match Appwrite's format
+        ...userInfo
+      };
       
       // Save to state and localStorage
-      setUser(userWithoutPassword);
-      localStorage.setItem('saccoUser', JSON.stringify(userWithoutPassword));
+      setUser(userWithAppwriteId);
+      localStorage.setItem('saccoUser', JSON.stringify(userWithAppwriteId));
       
       return;
     } catch (error) {
