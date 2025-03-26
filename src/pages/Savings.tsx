@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,8 @@ import { format } from 'date-fns';
 import { PlusCircle, Download, ArrowUpRight, Clock, CalendarIcon, BadgeDollarSign } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+// Import Appwrite services - uncomment when using Appwrite
+// import { savingsService, databases, DATABASE_ID, SAVINGS_COLLECTION_ID, ID } from '@/lib/appwrite';
 
 // Mock users data for admin to select from
 const MOCK_USERS = [
@@ -43,6 +45,40 @@ const Savings = () => {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [selectedUserId, setSelectedUserId] = useState<string>('');
   const [savingsData, setSavingsData] = useState(MOCK_SAVINGS);
+  const [isLoading, setIsLoading] = useState(false);
+  
+  // This effect would fetch data from Appwrite when component mounts
+  useEffect(() => {
+    // Uncomment when using Appwrite
+    // const fetchSavings = async () => {
+    //   setIsLoading(true);
+    //   try {
+    //     let data;
+    //     if (user?.isAdmin) {
+    //       data = await savingsService.getAllSavings();
+    //     } else {
+    //       data = await savingsService.getUserSavings(user?.$id || '');
+    //     }
+    //     setSavingsData(data.documents.map(doc => ({
+    //       id: doc.$id,
+    //       userId: doc.userId,
+    //       amount: doc.amount,
+    //       description: doc.description,
+    //       date: doc.date
+    //     })));
+    //   } catch (error) {
+    //     console.error('Error fetching savings data:', error);
+    //     toast.error('Failed to load savings data');
+    //   } finally {
+    //     setIsLoading(false);
+    //   }
+    // };
+    
+    // fetchSavings();
+    
+    // Using mock data for now
+    setIsLoading(false);
+  }, [user]);
 
   // Get user's savings or all savings for admin
   const filteredSavings = user?.isAdmin 
@@ -52,7 +88,7 @@ const Savings = () => {
   // Calculate total savings
   const totalSavings = filteredSavings.reduce((total, saving) => total + saving.amount, 0);
 
-  const handleSavingsSubmit = (e: React.FormEvent) => {
+  const handleSavingsSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!amount || !description) {
@@ -71,24 +107,57 @@ const Savings = () => {
       return;
     }
 
-    const newSaving = {
-      id: `s${savingsData.length + 1}`,
-      userId: user?.isAdmin ? selectedUserId : user?.$id || '',
-      amount: parseFloat(amount),
-      description,
-      date: selectedDate.toISOString()
-    };
+    setIsLoading(true);
+    
+    try {
+      const newSaving = {
+        id: `s${savingsData.length + 1}`,
+        userId: user?.isAdmin ? selectedUserId : user?.$id || '',
+        amount: parseFloat(amount),
+        description,
+        date: selectedDate.toISOString()
+      };
 
-    setSavingsData([...savingsData, newSaving]);
-    setAmount('');
-    setDescription('');
+      // Uncomment when using Appwrite
+      // if (user?.isAdmin) {
+      //   // Admin creating savings for a user
+      //   await databases.createDocument(
+      //     DATABASE_ID,
+      //     SAVINGS_COLLECTION_ID,
+      //     ID.unique(),
+      //     {
+      //       userId: selectedUserId,
+      //       amount: parseFloat(amount),
+      //       description,
+      //       date: selectedDate.toISOString()
+      //     }
+      //   );
+      // } else {
+      //   // User creating their own savings
+      //   await savingsService.createSavings(
+      //     user?.$id || '',
+      //     parseFloat(amount),
+      //     description
+      //   );
+      // }
+      
+      // Update local state for immediate UI feedback
+      setSavingsData([...savingsData, newSaving]);
+      setAmount('');
+      setDescription('');
 
-    if (user?.isAdmin) {
-      // Find user name for the toast message
-      const selectedUser = MOCK_USERS.find(u => u.$id === selectedUserId);
-      toast.success(`Savings added successfully for ${selectedUser?.name || 'user'}`);
-    } else {
-      toast.success('Savings added successfully');
+      if (user?.isAdmin) {
+        // Find user name for the toast message
+        const selectedUser = MOCK_USERS.find(u => u.$id === selectedUserId);
+        toast.success(`Savings added successfully for ${selectedUser?.name || 'user'}`);
+      } else {
+        toast.success('Savings added successfully');
+      }
+    } catch (error) {
+      console.error('Error adding savings:', error);
+      toast.error('Failed to add savings');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -100,10 +169,49 @@ const Savings = () => {
     });
   };
 
-  // Get user name by ID
+  // Get user name by ID - useful for admin view
   const getUserName = (userId: string) => {
+    // This could use a more efficient lookup in a real app
     const user = MOCK_USERS.find(u => u.$id === userId);
     return user ? user.name : `User ${userId}`;
+    
+    // With Appwrite, you might fetch user details:
+    // const fetchUserName = async (userId) => {
+    //   try {
+    //     const userDoc = await databases.listDocuments(
+    //       DATABASE_ID,
+    //       'users',
+    //       [Query.equal('userId', userId)]
+    //     );
+    //     return userDoc.documents[0]?.name || `User ${userId}`;
+    //   } catch (error) {
+    //     console.error('Error fetching user name:', error);
+    //     return `User ${userId}`;
+    //   }
+    // };
+  };
+
+  // Function to export savings data - would integrate with Appwrite's reporting service
+  const handleExportData = () => {
+    // Uncomment when using Appwrite
+    // const exportSavings = async () => {
+    //   try {
+    //     const userId = user?.isAdmin ? undefined : user?.$id;
+    //     const report = await reportsService.generateSavingsReport(userId);
+    //     const fileName = `savings_report_${new Date().toISOString().split('T')[0]}.json`;
+    //     const fileId = await reportsService.uploadReportToStorage(report, fileName);
+    //     const downloadLink = await reportsService.getReportDownloadLink(fileId);
+    //     window.open(downloadLink, '_blank');
+    //   } catch (error) {
+    //     console.error('Error exporting savings data:', error);
+    //     toast.error('Failed to export savings data');
+    //   }
+    // };
+    
+    // exportSavings();
+    
+    // For mock data, just show a toast
+    toast.success('Savings data would be exported here');
   };
 
   return (
@@ -145,7 +253,9 @@ const Savings = () => {
                     <div className="text-right">Actions</div>
                   </div>
                   <div className="divide-y">
-                    {filteredSavings.length === 0 ? (
+                    {isLoading ? (
+                      <div className="p-4 text-center text-muted-foreground">Loading savings data...</div>
+                    ) : filteredSavings.length === 0 ? (
                       <div className="p-4 text-center text-muted-foreground">No savings records found</div>
                     ) : (
                       filteredSavings.map((saving) => (
@@ -179,7 +289,7 @@ const Savings = () => {
                 </div>
               </CardContent>
               <CardFooter className="flex justify-between">
-                <Button variant="outline" className="w-full sm:w-auto">
+                <Button variant="outline" className="w-full sm:w-auto" onClick={handleExportData}>
                   <Download className="mr-2 h-4 w-4" />
                   Export Data
                 </Button>
@@ -274,9 +384,14 @@ const Savings = () => {
                       />
                     </div>
                   </div>
-                  <Button className="w-full mt-4" type="submit">
+                  <Button className="w-full mt-4" type="submit" disabled={isLoading}>
                     <BadgeDollarSign className="mr-2 h-4 w-4" />
-                    {user?.isAdmin ? 'Add Savings for User' : 'Add Savings'}
+                    {isLoading 
+                      ? 'Processing...' 
+                      : user?.isAdmin 
+                        ? 'Add Savings for User' 
+                        : 'Add Savings'
+                    }
                   </Button>
                 </form>
               </CardContent>
