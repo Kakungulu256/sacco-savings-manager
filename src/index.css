@@ -1,11 +1,10 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --background: 210 40% 98%;
+    --background: 228 33% 97%;
     --foreground: 222 47% 11%;
 
     --card: 0 0% 100%;
@@ -14,7 +13,7 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 47% 11.2%;
 
-    --primary: 221 83% 53%;
+    --primary: 238 83% 58%;
     --primary-foreground: 210 40% 98%;
 
     --secondary: 210 40% 96.1%;
@@ -23,7 +22,7 @@
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
 
-    --accent: 210 40% 96.1%;
+    --accent: 238 83% 92%;
     --accent-foreground: 222.2 47% 11.2%;
 
     --destructive: 0 84.2% 60.2%;
@@ -31,18 +30,18 @@
 
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 221 83% 53%;
+    --ring: 238 83% 58%;
 
     --radius: 0.75rem;
 
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 222 47% 11%;
-    --sidebar-primary: 221 83% 53%;
+    --sidebar-primary: 238 83% 58%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 210 40% 96.1%;
     --sidebar-accent-foreground: 222.2 47% 11.2%;
     --sidebar-border: 214.3 31.8% 91.4%;
-    --sidebar-ring: 221 83% 53%;
+    --sidebar-ring: 238 83% 58%;
   }
 
   .dark {
@@ -109,7 +108,7 @@
 
 @layer utilities {
   .glass {
-    @apply bg-white/70 backdrop-blur-lg border border-white/20 shadow-sm;
+    @apply bg-white/80 backdrop-blur-lg border border-white/30 shadow-lg;
   }
   
   .glass-dark {
@@ -121,7 +120,11 @@
   }
 
   .button-hover {
-    @apply transition-all duration-200 hover:translate-y-[-1px] active:translate-y-0;
+    @apply transition-all duration-200 hover:translate-y-[-2px] hover:shadow-md active:translate-y-0;
+  }
+
+  .input-focus {
+    @apply focus:border-primary/50 focus:ring-2 focus:ring-primary/20;
   }
 }
 
