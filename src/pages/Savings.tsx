@@ -6,8 +6,26 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { PlusCircle, Download, ArrowUpRight, Clock } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { 
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { format } from 'date-fns';
+import { PlusCircle, Download, ArrowUpRight, Clock, CalendarIcon, BadgeDollarSign } from 'lucide-react';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
+
+// Mock users data for admin to select from
+const MOCK_USERS = [
+  { $id: '1', email: 'admin@sacco.com', name: 'Admin User' },
+  { $id: '2', email: 'user@sacco.com', name: 'Regular User' },
+  { $id: '3', email: 'john.doe@example.com', name: 'John Doe' },
+  { $id: '4', email: 'jane.smith@example.com', name: 'Jane Smith' },
+  { $id: '5', email: 'mark.johnson@example.com', name: 'Mark Johnson' },
+];
 
 // Mock savings data
 const MOCK_SAVINGS = [
@@ -22,6 +40,8 @@ const Savings = () => {
   const { user } = useAuth();
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [selectedUserId, setSelectedUserId] = useState<string>('');
   const [savingsData, setSavingsData] = useState(MOCK_SAVINGS);
 
   // Get user's savings or all savings for admin
@@ -36,22 +56,40 @@ const Savings = () => {
     e.preventDefault();
     
     if (!amount || !description) {
-      toast.error('Please fill all fields');
+      toast.error('Please fill all required fields');
+      return;
+    }
+
+    // For admin, require a user selection
+    if (user?.isAdmin && !selectedUserId) {
+      toast.error('Please select a user');
+      return;
+    }
+
+    if (!selectedDate) {
+      toast.error('Please select a date');
       return;
     }
 
     const newSaving = {
       id: `s${savingsData.length + 1}`,
-      userId: user?.$id || '',
+      userId: user?.isAdmin ? selectedUserId : user?.$id || '',
       amount: parseFloat(amount),
       description,
-      date: new Date().toISOString()
+      date: selectedDate.toISOString()
     };
 
     setSavingsData([...savingsData, newSaving]);
     setAmount('');
     setDescription('');
-    toast.success('Savings added successfully');
+
+    if (user?.isAdmin) {
+      // Find user name for the toast message
+      const selectedUser = MOCK_USERS.find(u => u.$id === selectedUserId);
+      toast.success(`Savings added successfully for ${selectedUser?.name || 'user'}`);
+    } else {
+      toast.success('Savings added successfully');
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -60,6 +98,12 @@ const Savings = () => {
       month: 'short',
       day: 'numeric',
     });
+  };
+
+  // Get user name by ID
+  const getUserName = (userId: string) => {
+    const user = MOCK_USERS.find(u => u.$id === userId);
+    return user ? user.name : `User ${userId}`;
   };
 
   return (
@@ -110,7 +154,9 @@ const Savings = () => {
                             <Clock className="h-4 w-4 text-muted-foreground" />
                             <span>{formatDate(saving.date)}</span>
                           </div>
-                          <div className="hidden md:block">{user?.isAdmin ? `User ID: ${saving.userId}` : saving.description}</div>
+                          <div className="hidden md:block">
+                            {user?.isAdmin ? getUserName(saving.userId) : saving.description}
+                          </div>
                           <div>{user?.isAdmin ? saving.description : saving.amount.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</div>
                           <div className="text-right">
                             {user?.isAdmin ? (
@@ -145,11 +191,38 @@ const Savings = () => {
             <Card>
               <CardHeader>
                 <CardTitle>Make a Deposit</CardTitle>
-                <CardDescription>Add funds to your savings account</CardDescription>
+                <CardDescription>
+                  {user?.isAdmin 
+                    ? 'Add savings for a specific user' 
+                    : 'Add funds to your savings account'}
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleSavingsSubmit}>
                   <div className="grid gap-4">
+                    {/* User selection dropdown (admin only) */}
+                    {user?.isAdmin && (
+                      <div className="grid gap-2">
+                        <Label htmlFor="user">User</Label>
+                        <Select
+                          value={selectedUserId}
+                          onValueChange={setSelectedUserId}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a user" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {MOCK_USERS.map((user) => (
+                              <SelectItem key={user.$id} value={user.$id}>
+                                {user.name} ({user.email})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+
+                    {/* Amount input */}
                     <div className="grid gap-2">
                       <Label htmlFor="amount">Amount</Label>
                       <Input
@@ -160,6 +233,37 @@ const Savings = () => {
                         onChange={(e) => setAmount(e.target.value)}
                       />
                     </div>
+
+                    {/* Date selection */}
+                    <div className="grid gap-2">
+                      <Label htmlFor="date">Date</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            id="date"
+                            variant="outline"
+                            className={cn(
+                              "w-full justify-start text-left font-normal",
+                              !selectedDate && "text-muted-foreground"
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date</span>}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={selectedDate}
+                            onSelect={setSelectedDate}
+                            initialFocus
+                            className={cn("p-3 pointer-events-auto")}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+
+                    {/* Description input */}
                     <div className="grid gap-2">
                       <Label htmlFor="description">Description</Label>
                       <Input
@@ -171,8 +275,8 @@ const Savings = () => {
                     </div>
                   </div>
                   <Button className="w-full mt-4" type="submit">
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Add Savings
+                    <BadgeDollarSign className="mr-2 h-4 w-4" />
+                    {user?.isAdmin ? 'Add Savings for User' : 'Add Savings'}
                   </Button>
                 </form>
               </CardContent>
