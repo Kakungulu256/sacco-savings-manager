@@ -77,7 +77,7 @@ const Users = () => {
       return;
     }
 
-    // Create new user
+    // Create new user - FIX: Added joinDate to match the expected type
     const createdUser = {
       $id: `${users.length + 1}`,
       email: newUser.email,
@@ -103,9 +103,13 @@ const Users = () => {
   const handleUpdateUser = () => {
     if (!editingUser) return;
     
-    // Update user in the list
+    // Find the user to update to get the joinDate
+    const userToUpdate = users.find(u => u.$id === editingUser.$id);
+    if (!userToUpdate) return;
+    
+    // Update user in the list with the existing joinDate
     const updatedUsers = users.map(u => 
-      u.$id === editingUser.$id ? editingUser : u
+      u.$id === editingUser.$id ? { ...editingUser, joinDate: userToUpdate.joinDate } : u
     );
     
     setUsers(updatedUsers);
@@ -327,7 +331,7 @@ const Users = () => {
                       </div>
                       <div>
                         {user.status === 'active' ? (
-                          <Badge variant="success" className="bg-green-500">Active</Badge>
+                          <Badge variant="secondary" className="bg-green-500 text-white">Active</Badge>
                         ) : (
                           <Badge variant="destructive">Inactive</Badge>
                         )}
