@@ -12,6 +12,11 @@ import AdminRoute from "@/components/AdminRoute";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
+import Savings from "./pages/Savings";
+import Loans from "./pages/Loans";
+import Reports from "./pages/Reports";
+import Users from "./pages/Users";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -28,11 +33,38 @@ const App = () => (
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             
-            {/* Protected Routes */}
+            {/* Protected Routes (available to all authenticated users) */}
             <Route path="/dashboard" element={
               <ProtectedRoute>
                 <Dashboard />
               </ProtectedRoute>
+            } />
+            <Route path="/savings" element={
+              <ProtectedRoute>
+                <Savings />
+              </ProtectedRoute>
+            } />
+            <Route path="/loans" element={
+              <ProtectedRoute>
+                <Loans />
+              </ProtectedRoute>
+            } />
+            <Route path="/reports" element={
+              <ProtectedRoute>
+                <Reports />
+              </ProtectedRoute>
+            } />
+            
+            {/* Admin Only Routes */}
+            <Route path="/users" element={
+              <AdminRoute>
+                <Users />
+              </AdminRoute>
+            } />
+            <Route path="/settings" element={
+              <AdminRoute>
+                <Settings />
+              </AdminRoute>
             } />
             
             {/* Default Redirects */}
