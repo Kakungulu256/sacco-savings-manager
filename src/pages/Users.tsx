@@ -1,5 +1,5 @@
 
-// import React, { useState } from 'react';
+// import React, { useState, useEffect } from 'react';
 // import { useAuth } from '@/contexts/AuthContext';
 // import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 // import { Button } from '@/components/ui/button';
@@ -10,33 +10,16 @@
 // import { Search, UserPlus, Edit2, Trash2, UserCheck, UserX, Mail, UserCog } from 'lucide-react';
 // import { toast } from 'sonner';
 // import { Navigate } from 'react-router-dom';
-
-// // Mock users data
-// const MOCK_USERS = [
-//   { $id: '1', email: 'admin@sacco.com', name: 'Admin User', isAdmin: true, joinDate: '2023-01-15T10:00:00Z', status: 'active' },
-//   { $id: '2', email: 'user@sacco.com', name: 'Regular User', isAdmin: false, joinDate: '2023-02-20T15:30:00Z', status: 'active' },
-//   { $id: '3', email: 'john.doe@example.com', name: 'John Doe', isAdmin: false, joinDate: '2023-03-10T11:45:00Z', status: 'active' },
-//   { $id: '4', email: 'jane.smith@example.com', name: 'Jane Smith', isAdmin: false, joinDate: '2023-04-05T09:15:00Z', status: 'inactive' },
-//   { $id: '5', email: 'mark.johnson@example.com', name: 'Mark Johnson', isAdmin: false, joinDate: '2023-05-18T14:20:00Z', status: 'active' },
-// ];
+// import { userService } from '@/lib/appwrite';
 
 // const Users = () => {
 //   const { user } = useAuth();
-//   const [users, setUsers] = useState(MOCK_USERS);
+//   const [users, setUsers] = useState([]);
 //   const [searchTerm, setSearchTerm] = useState('');
 //   const [filterRole, setFilterRole] = useState('all');
 //   const [filterStatus, setFilterStatus] = useState('all');
-  
-//   // For editing user
-//   const [editingUser, setEditingUser] = useState<null | {
-//     $id: string;
-//     email: string;
-//     name: string;
-//     isAdmin: boolean;
-//     status: string;
-//   }>(null);
-  
-//   // For creating new user
+
+//   const [editingUser, setEditingUser] = useState(null);
 //   const [newUser, setNewUser] = useState({
 //     email: '',
 //     name: '',
@@ -44,135 +27,46 @@
 //     password: '',
 //   });
 
-//   // Redirect non-admin users
 //   if (!user?.isAdmin) {
 //     return <Navigate to="/dashboard" />;
 //   }
 
-//   // Filter and search users
-//   const filteredUsers = users.filter(u => {
-//     const matchesSearch = searchTerm === '' || 
-//       u.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-//       u.email.toLowerCase().includes(searchTerm.toLowerCase());
-    
-//     const matchesRole = filterRole === 'all' || 
-//       (filterRole === 'admin' && u.isAdmin) || 
-//       (filterRole === 'user' && !u.isAdmin);
-    
-//     const matchesStatus = filterStatus === 'all' || u.status === filterStatus;
-    
-//     return matchesSearch && matchesRole && matchesStatus;
-//   });
-
-//   const handleCreateUser = () => {
-//     // Validate inputs
-//     if (!newUser.email || !newUser.name || !newUser.password) {
-//       toast.error('Please fill in all fields');
-//       return;
-//     }
-
-//     // Check if email already exists
-//     if (users.some(u => u.email === newUser.email)) {
-//       toast.error('A user with this email already exists');
-//       return;
-//     }
-
-//     // Create new user - FIX: Added joinDate to match the expected type
-//     const createdUser = {
-//       $id: `${users.length + 1}`,
-//       email: newUser.email,
-//       name: newUser.name,
-//       isAdmin: newUser.isAdmin,
-//       joinDate: new Date().toISOString(),
-//       status: 'active'
+//   useEffect(() => {
+//     const fetchUsers = async () => {
+//       try {
+//         const response = await userService.getAllUsers();
+//         setUsers(response.documents.map(doc => ({
+//           $id: doc.$id,
+//           email: doc.email,
+//           name: doc.name,
+//           isAdmin: doc.isAdmin,
+//           joinDate: doc.joinDate,
+//           status: doc.status,
+//         })));
+//       } catch (error) {
+//         console.error('Error fetching users:', error);
+//         toast.error('Failed to load users');
+//       }
 //     };
 
-//     setUsers([...users, createdUser]);
-    
-//     // Reset form
-//     setNewUser({
-//       email: '',
-//       name: '',
-//       isAdmin: false,
-//       password: '',
-//     });
-    
-//     toast.success('User created successfully');
-//   };
+//     fetchUsers();
+//   }, []);
 
-//   const handleUpdateUser = () => {
-//     if (!editingUser) return;
-    
-//     // Find the user to update to get the joinDate
-//     const userToUpdate = users.find(u => u.$id === editingUser.$id);
-//     if (!userToUpdate) return;
-    
-//     // Update user in the list with the existing joinDate
-//     const updatedUsers = users.map(u => 
-//       u.$id === editingUser.$id ? { ...editingUser, joinDate: userToUpdate.joinDate } : u
-//     );
-    
-//     setUsers(updatedUsers);
-//     setEditingUser(null);
-//     toast.success('User updated successfully');
-//   };
+//   const filteredUsers = users.filter((u) => {
+//     const matchesSearch =
+//       searchTerm === '' ||
+//       u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+//       u.email.toLowerCase().includes(searchTerm.toLowerCase());
 
-//   const handleDeleteUser = (userId: string) => {
-//     // Don't allow deleting yourself
-//     if (userId === user?.$id) {
-//       toast.error('You cannot delete your own account');
-//       return;
-//     }
+//     const matchesRole =
+//       filterRole === 'all' ||
+//       (filterRole === 'admin' && u.isAdmin) ||
+//       (filterRole === 'user' && !u.isAdmin);
 
-//     // Remove user from the list
-//     const updatedUsers = users.filter(u => u.$id !== userId);
-//     setUsers(updatedUsers);
-//     toast.success('User deleted successfully');
-//   };
+//     const matchesStatus = filterStatus === 'all' || u.status === filterStatus;
 
-//   const toggleUserStatus = (userId: string) => {
-//     // Don't allow deactivating yourself
-//     if (userId === user?.$id) {
-//       toast.error('You cannot change your own status');
-//       return;
-//     }
-
-//     // Update user status
-//     const updatedUsers = users.map(u => {
-//       if (u.$id === userId) {
-//         return {
-//           ...u,
-//           status: u.status === 'active' ? 'inactive' : 'active'
-//         };
-//       }
-//       return u;
-//     });
-    
-//     setUsers(updatedUsers);
-//     toast.success('User status updated successfully');
-//   };
-
-//   const toggleUserRole = (userId: string) => {
-//     // Don't allow changing your own role
-//     if (userId === user?.$id) {
-//       toast.error('You cannot change your own role');
-//       return;
-//     }
-
-//     // Update user role
-//     const updatedUsers = users.map(u => {
-//       if (u.$id === userId) {
-//         return {
-//           ...u,
-//           isAdmin: !u.isAdmin
-//         };
-//       }
-//       return u;
-//     });
-    
-//     setUsers(updatedUsers);
-//     toast.success('User role updated successfully');
-//   };
+//     return matchesSearch && matchesRole && matchesStatus;
+//   });
 
 //   const formatDate = (dateString: string) => {
 //     return new Date(dateString).toLocaleDateString('en-US', {
@@ -180,6 +74,118 @@
 //       month: 'short',
 //       day: 'numeric',
 //     });
+//   };
+
+//   // const handleCreateUser = async () => {
+//   //   if (!newUser.email || !newUser.name || !newUser.password) {
+//   //     toast.error('Please fill in all fields');
+//   //     return;
+//   //   }
+
+//   //   try {
+//   //     const createdUser = await userService.createUser(newUser);
+//   //     setUsers([...users, { ...createdUser, joinDate: new Date().toISOString(), status: 'active' }]);
+//   //     setNewUser({ email: '', name: '', isAdmin: false, password: '' });
+//   //     toast.success('User created successfully');
+//   //   } catch (error) {
+//   //     console.error('Error creating user:', error);
+//   //     toast.error('Failed to create user');
+//   //   }
+//   // };
+
+//   const handleCreateUser = async () => {
+//     if (!newUser.email || !newUser.name || !newUser.password) {
+//       toast.error('Please fill in all fields');
+//       return;
+//     }
+  
+//     try {
+//       // Call the updated userService.createUser method
+//       const createdUser = await userService.createUser(newUser);
+  
+//       // Update the local state with the new user
+//       setUsers([
+//         ...users,
+//         {
+//           $id: createdUser.$id,
+//           email: createdUser.email,
+//           name: createdUser.name,
+//           isAdmin: createdUser.isAdmin,
+//           joinDate: createdUser.joinDate,
+//           status: createdUser.status,
+//         },
+//       ]);
+  
+//       // Reset the form
+//       setNewUser({ email: '', name: '', isAdmin: false, password: '' });
+  
+//       toast.success('User created successfully');
+//     } catch (error) {
+//       console.error('Error creating user:', error);
+//       toast.error('Failed to create user');
+//     }
+//   };
+
+//   const handleUpdateUser = async () => {
+//     if (!editingUser) return;
+
+//     try {
+//       await userService.updateUser(editingUser.$id, editingUser);
+//       setUsers(users.map(u => (u.$id === editingUser.$id ? editingUser : u)));
+//       setEditingUser(null);
+//       toast.success('User updated successfully');
+//     } catch (error) {
+//       console.error('Error updating user:', error);
+//       toast.error('Failed to update user');
+//     }
+//   };
+
+//   const handleDeleteUser = async (userId) => {
+//     if (userId === user?.$id) {
+//       toast.error('You cannot delete your own account');
+//       return;
+//     }
+
+//     try {
+//       await userService.deleteUser(userId);
+//       setUsers(users.filter(u => u.$id !== userId));
+//       toast.success('User deleted successfully');
+//     } catch (error) {
+//       console.error('Error deleting user:', error);
+//       toast.error('Failed to delete user');
+//     }
+//   };
+
+//   const toggleUserStatus = async (userId) => {
+//     const userToUpdate = users.find(u => u.$id === userId);
+//     if (!userToUpdate) return;
+
+//     const updatedStatus = userToUpdate.status === 'active' ? 'inactive' : 'active';
+
+//     try {
+//       await userService.updateUser(userId, { status: updatedStatus });
+//       setUsers(users.map(u => (u.$id === userId ? { ...u, status: updatedStatus } : u)));
+//       toast.success('User status updated successfully');
+//     } catch (error) {
+//       console.error('Error updating user status:', error);
+//       toast.error('Failed to update user status');
+//     }
+//   };
+
+//   const toggleUserRole = async (userId) => {
+//     const userToUpdate = users.find(u => u.$id === userId);
+//     if (!userToUpdate) return;
+
+//     const updatedRole = !userToUpdate.isAdmin;
+
+//     try {
+//       await userService.updateUser(userId, { isAdmin: updatedRole });
+//       setUsers(users.map(u => (u.$id === userId ? { ...u, isAdmin: updatedRole } : u)));
+//       toast.success('User role updated successfully');
+//     } catch (error) {
+//       console.error('Error updating user role:', error);
+//       toast.error('Failed to update user role');
+//     }
 //   };
 
 //   return (
@@ -248,7 +254,9 @@
 //                 </div>
 //               </div>
 //               <DialogFooter>
-//                 <Button type="submit" onClick={handleCreateUser}>Create User</Button>
+//                 <Button type="submit" onClick={handleCreateUser}>
+//                   Create User
+//                 </Button>
 //               </DialogFooter>
 //             </DialogContent>
 //           </Dialog>
@@ -331,7 +339,9 @@
 //                       </div>
 //                       <div>
 //                         {user.status === 'active' ? (
-//                           <Badge variant="secondary" className="bg-green-500 text-white">Active</Badge>
+//                           <Badge variant="secondary" className="bg-green-500 text-white">
+//                             Active
+//                           </Badge>
 //                         ) : (
 //                           <Badge variant="destructive">Inactive</Badge>
 //                         )}
@@ -357,7 +367,9 @@
 //                                   <Input
 //                                     id="edit-name"
 //                                     value={editingUser.name}
-//                                     onChange={(e) => setEditingUser({ ...editingUser, name: e.target.value })}
+//                                     onChange={(e) =>
+//                                       setEditingUser({ ...editingUser, name: e.target.value })
+//                                     }
 //                                   />
 //                                 </div>
 //                                 <div className="grid gap-2">
@@ -366,14 +378,18 @@
 //                                     id="edit-email"
 //                                     type="email"
 //                                     value={editingUser.email}
-//                                     onChange={(e) => setEditingUser({ ...editingUser, email: e.target.value })}
+//                                     onChange={(e) =>
+//                                       setEditingUser({ ...editingUser, email: e.target.value })
+//                                     }
 //                                   />
 //                                 </div>
 //                                 <div className="grid gap-2">
 //                                   <label htmlFor="edit-role">Role</label>
 //                                   <Select
 //                                     value={editingUser.isAdmin ? 'admin' : 'user'}
-//                                     onValueChange={(value) => setEditingUser({ ...editingUser, isAdmin: value === 'admin' })}
+//                                     onValueChange={(value) =>
+//                                       setEditingUser({ ...editingUser, isAdmin: value === 'admin' })
+//                                     }
 //                                     disabled={editingUser.$id === user?.$id}
 //                                   >
 //                                     <SelectTrigger>
@@ -389,7 +405,9 @@
 //                                   <label htmlFor="edit-status">Status</label>
 //                                   <Select
 //                                     value={editingUser.status}
-//                                     onValueChange={(value) => setEditingUser({ ...editingUser, status: value })}
+//                                     onValueChange={(value) =>
+//                                       setEditingUser({ ...editingUser, status: value })
+//                                     }
 //                                     disabled={editingUser.$id === user?.$id}
 //                                   >
 //                                     <SelectTrigger>
@@ -403,7 +421,9 @@
 //                                 </div>
 //                               </div>
 //                               <DialogFooter>
-//                                 <Button type="submit" onClick={handleUpdateUser}>Update User</Button>
+//                                 <Button type="submit" onClick={handleUpdateUser}>
+//                                   Update User
+//                                 </Button>
 //                               </DialogFooter>
 //                             </DialogContent>
 //                           )}
@@ -456,8 +476,7 @@
 
 // export default Users;
 
-
-//=============================================================================================================
+//=====================================================================================================
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -544,8 +563,21 @@ const Users = () => {
 
     try {
       const createdUser = await userService.createUser(newUser);
-      setUsers([...users, { ...createdUser, joinDate: new Date().toISOString(), status: 'active' }]);
+
+      setUsers([
+        ...users,
+        {
+          $id: createdUser.$id,
+          email: createdUser.email,
+          name: createdUser.name,
+          isAdmin: createdUser.isAdmin,
+          joinDate: createdUser.joinDate,
+          status: createdUser.status,
+        },
+      ]);
+
       setNewUser({ email: '', name: '', isAdmin: false, password: '' });
+
       toast.success('User created successfully');
     } catch (error) {
       console.error('Error creating user:', error);
@@ -747,10 +779,10 @@ const Users = () => {
                           </div>
                           <div>
                             <div className="font-medium">{user.name}</div>
-                            <div className="text-sm text-muted-foreground flex items-center">
+                            {/* <div className="text-sm text-muted-foreground flex items-center">
                               <Mail className="h-3 w-3 mr-1" />
                               {user.email}
-                            </div>
+                            </div> */}
                           </div>
                         </div>
                       </div>
